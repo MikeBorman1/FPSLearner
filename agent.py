@@ -74,11 +74,27 @@ class Agent:
         except:
             pass
 
-    def times_Hit(self,):
-        self.timesHit += 1
-
-    def agent_Hits(self,):
+    def hit(self):
         self.agentHits += 1
+        self.opponent.timesHit += 1
+
+   
+
+    def copy(self):
+        # Create a new agent with the same weights
+        new_agent = Agent(self.x, self.y, self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
+        new_agent.nn = NN.NeuralNetwork.from_weights(self.nn.get_weights())
+        return new_agent
+    
+    def crossover(self, other):
+        # Create a new agent with weights that are a combination of this agent's and the other agent's weights
+        new_agent = self.copy()
+        new_agent.nn.crossover(other.nn)
+        return new_agent
+
+    def mutate(self):
+        # Randomly modify the weights
+        self.nn.mutate()
 
 
 class Projectile:
@@ -104,5 +120,3 @@ class Projectile:
 
     
 
-#def check_collision(agent, projectile):
-    # Implement collision detection logic here
