@@ -18,9 +18,18 @@ class Agent:
         self.front = self.update_front()
         self.projectiles = []
         self.opponent = opponent
-        self.nn = NN.NeuralNetwork(8, 16, 4)
+        self.nn = NN.NeuralNetwork(9, 16, 4)
         self.agentHits =0
         self.timesHit = 0
+        self.input_ranges = [(0, self.WINDOW_WIDTH),  # x
+                     (0, self.WINDOW_HEIGHT),  # y
+                     (-1, 1),  # direction[0]
+                     (-1, 1),  # direction[1]
+                     (0, self.WINDOW_WIDTH),  # front[0]
+                     (0, self.WINDOW_HEIGHT),  # front[1]
+                     (0, self.WINDOW_WIDTH),  # opponent.x
+                     (0, self.WINDOW_HEIGHT),
+                     (0, min(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)/2)]  # opponent.y
 
     def move(self):
         
@@ -42,23 +51,40 @@ class Agent:
         # Add a simple boundary rule so agents stay within the screen
         if self.x <= 0 or self.x >= self.WINDOW_WIDTH:
             self.direction[0] *= -1
+            self.hitwall()
+
         if self.y <= 0 or self.y >= self.WINDOW_HEIGHT:
             self.direction[1] *= -1
+
 
     def update_front(self):
            self.front = [(self.radius+20) *  math.cos(self.rotation) + self.x, (self.radius+20) * math.sin(self.rotation) + self.y ]
 
-    def get_state(self):
-        # Fetch the current state of the agent
-        return np.array([self.x, self.y, self.direction[0], self.direction[1], self.front[0], self.front[1], self.opponent.x, self.opponent.y])
     
+    def get_state(self):
+    # Fetch the current state of the agent
+        raw_state = np.array([self.x, self.y, self.direction[0], self.direction[1], 
+                          self.front[0], self.front[1], self.opponent.x, self.opponent.y, self.dist_to_wall()])
+
+    # Normalize each feature
+        state = np.array([self.rescale(raw_state[i], self.input_ranges[i], (-1, 1)) for i in range(len(raw_state))])
+        return state
+
     def interpret_output(self, output):
         # Use the neural network's output to modify the agent's state
         self.direction = [output[0], output[1]]
-        self.rotation = output[3]
+        self.rotation = self.rescale(output[3], old_range=(-1, 1), new_range=(0, 2*math.pi)) 
+        
         self.update_front()
         if output[2] > 0.5:
             self.shoot()
+
+    def rescale(self, x, old_range, new_range):
+        old_min, old_max = old_range
+        new_min, new_max = new_range
+
+    # Rescale x from the old range to the new range
+        return ((x - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min
     
     def set_opponent(self, opponent):
         self.opponent = opponent
@@ -71,12 +97,25 @@ class Agent:
     def delProjectile(self,projectile):
         try:
             self.projectiles.remove(projectile)
+            del projectile
         except:
             pass
 
     def hit(self):
         self.agentHits += 1
         self.opponent.timesHit += 1
+        
+    def hitwall(self):
+        self.timesHit += 1
+
+    def dist_to_wall(self):
+    # Returns the minimum distance to a wall from the current position
+        dist_to_left_wall = self.x
+        dist_to_right_wall = self.WINDOW_WIDTH - self.x
+        dist_to_top_wall = self.y
+        dist_to_bottom_wall = self.WINDOW_HEIGHT - self.y
+        return min(dist_to_left_wall, dist_to_right_wall, dist_to_top_wall, dist_to_bottom_wall)
+
 
    
 

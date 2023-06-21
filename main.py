@@ -4,7 +4,7 @@ import math
 import itertools
 import random
 import matplotlib.pyplot as plt 
-
+import pickle
 import pygame
 import math
 import itertools
@@ -182,7 +182,7 @@ def run_simulation_withGraphics(agent1, agent2, seconds):
       
       
       if sec > seconds:
-        pygame.quit()
+        running = False
 
 
 
@@ -195,8 +195,8 @@ class GeneticAlgorithm:
         self.population_size = population_size
         self.population = [agent.Agent(200, 300, 800, 600) for _ in range(population_size)]
         self.history = {'generation': [], 'best': [], 'worst': [], 'average': []}
-        plt.ion()
-        self.fig, self.ax = plt.subplots()
+        #plt.ion()
+        #self.fig, self.ax = plt.subplots()
     
     def selection(self):
         # Tournament selection
@@ -216,7 +216,7 @@ class GeneticAlgorithm:
        
         for agent1, agent2 in itertools.combinations(self.population, 2):
 
-            run_simulation(agent1, agent2, 10, count)
+            run_simulation(agent1, agent2, 20, count)
             count += 1
         
         # Selection
@@ -233,6 +233,7 @@ class GeneticAlgorithm:
         # Replacement
         if numberofgenerations -1  == generation :
             self.runSim()
+            ga.save_agents('agentsfixed.pkl')   
 
             return
 
@@ -263,48 +264,40 @@ class GeneticAlgorithm:
 
         
         
-        # Clear the previous plot
-        self.ax.clear()
-        
-        # Draw the new plot
-        self.ax.plot(self.history['generation'], self.history['best'], label='Best')
-        self.ax.plot(self.history['generation'], self.history['worst'], label='Worst')
-        self.ax.plot(self.history['generation'], self.history['average'], label='Average')
-        
-        # Adding legend
-        self.ax.legend(loc='lower right')
-
-        # Adding titles and labels
-        self.ax.set_title('Genetic Algorithm Simulation')
-        self.ax.set_xlabel('Generations')
-        self.ax.set_ylabel('Scores')
-
-        # Draw the figure on the plot
-        self.fig.canvas.draw()
-        
-        # Pause the plot for a small amount of time (e.g., 0.01 seconds)
-        plt.pause(0.01)
-
         
     def runSim(self):   
 
-        best_agent = max(self.population, key=lambda agent: (agent.agentHits-agent.timesHit))
-        worst_agent = min(self.population, key=lambda agent: (agent.agentHits-agent.timesHit))
+        pop = self.population[:]
+
+        best_agent = max(pop, key=lambda agent: (agent.agentHits-agent.timesHit))
+        pop.remove(best_agent)
+        worst_agent = min(pop, key=lambda agent: (agent.agentHits-agent.timesHit))
         run_simulation_withGraphics(best_agent, worst_agent, 20)
+
+
+    def save_agents(self, filename):
+        try:
+            with open(filename, 'wb') as f:
+                pickle.dump(self.population, f)
+                print("Agent saved successfully.")
+        except Exception as e:
+            print(f"Error occurred while saving agent: {e}")
+
+    def load_agents(self, filename):
+        with open(filename, 'rb') as f:
+            self.population = pickle.load(f)
+
 
 ga = GeneticAlgorithm(population_size)
 
 
-numberofgenerations = 100
-for _ in range(numberofgenerations):
-     # Run the genetic algorithm for 100 generations
-    ga.run_generation(_,numberofgenerations)
+numberofgenerations = 20
+#for _ in range(numberofgenerations):
+      #Run the genetic algorithm for 100 generations
+    #ga.run_generation(_,numberofgenerations)
     
-    
 
 
 
-#a1 = agent.Agent(200, 300, 800, 600)
-#a2 = agent.Agent(200, 300, 800, 600)
-
-#run_simulation_withGraphics(a1,a2,10)
+ga.load_agents('agentsfixed.pkl')
+ga.runSim()
