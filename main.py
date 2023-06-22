@@ -20,7 +20,7 @@ pygame.init()
 my_font = pygame.font.SysFont('Comic Sans MS', 30)
 #game_window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.time.Clock().tick(2000)
-population_size = 20
+population_size = 10
 
 
 
@@ -207,7 +207,7 @@ class GeneticAlgorithm:
     def replacement(self):
         # Replace the worst individuals in the population with the newly created individuals
         self.population.sort(key=lambda agent: (agent.agentHits-agent.timesHit))
-        self.population[:5] = self.new_individuals
+        self.population[:3] = self.new_individuals
 
     def run_generation(self,generation,numberofgenerations):
         # Run the game for each pair of agents
@@ -216,14 +216,15 @@ class GeneticAlgorithm:
        
         for agent1, agent2 in itertools.combinations(self.population, 2):
 
-            run_simulation(agent1, agent2, 20, count)
+            run_simulation(agent1, agent2, 40, count)
             count += 1
+            run_simulation(agent2, agent1, 40, count)
         
         # Selection
         parent1, parent2 = self.selection()
         
         # Crossover
-        self.new_individuals = [parent1.crossover(parent2) for _ in range(5)]
+        self.new_individuals = [parent1.crossover(parent2) for _ in range(3)]
         
         # Mutation
         for individual in self.new_individuals:
@@ -233,7 +234,7 @@ class GeneticAlgorithm:
         # Replacement
         if numberofgenerations -1  == generation :
             self.runSim()
-            ga.save_agents('agentsfixed.pkl')   
+            ga.save_agents('agents2.pkl')   
 
             return
 
@@ -268,10 +269,10 @@ class GeneticAlgorithm:
     def runSim(self):   
 
         pop = self.population[:]
-
-        best_agent = max(pop, key=lambda agent: (agent.agentHits-agent.timesHit))
-        pop.remove(best_agent)
-        worst_agent = min(pop, key=lambda agent: (agent.agentHits-agent.timesHit))
+        pop.sort(key=lambda agent: (agent.agentHits-agent.timesHit))
+        best_agent = pop[9]
+        
+        worst_agent = pop[8]
         run_simulation_withGraphics(best_agent, worst_agent, 20)
 
 
@@ -292,12 +293,13 @@ ga = GeneticAlgorithm(population_size)
 
 
 numberofgenerations = 20
-#for _ in range(numberofgenerations):
+for _ in range(numberofgenerations):
       #Run the genetic algorithm for 100 generations
-    #ga.run_generation(_,numberofgenerations)
+    ga.run_generation(_,numberofgenerations)
     
 
 
 
-ga.load_agents('agentsfixed.pkl')
+ga.load_agents('agents2.pkl')
 ga.runSim()
+
