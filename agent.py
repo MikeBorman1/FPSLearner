@@ -13,23 +13,23 @@ class Agent:
         self.radius = 30
         self.speed = 0.05
         self.direction = [random.uniform(-1, 1), random.uniform(-1, 1)]  # direction of movement
-        self.rotation = random.uniform(0, 2*math.pi)  # direction agent is facing
+        self.rotation = 0 # direction agent is facing
         self.ticks = 0  # Add a ticks attribute
         self.front = self.update_front()
         self.projectiles = []
         self.opponent = opponent
-        self.nn = NN.NeuralNetwork(9, 16, 4)
+        self.nn = NN.NeuralNetwork(9, 20, 10, 4)
         self.agentHits =0
         self.timesHit = 0
         self.input_ranges = [(0, self.WINDOW_WIDTH),  # x
                      (0, self.WINDOW_HEIGHT),  # y
                      (-1, 1),  # direction[0]
                      (-1, 1),  # direction[1]
-                     (0, self.WINDOW_WIDTH),  # front[0]
-                     (0, self.WINDOW_HEIGHT),  # front[1]
                      (0, self.WINDOW_WIDTH),  # opponent.x
-                     (0, self.WINDOW_HEIGHT),
-                     (0, min(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)/2)]  # opponent.y
+                     (0, self.WINDOW_HEIGHT), # opponent y
+                     (0, min(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)/2),  # opponent.y
+                     (0, ((self.WINDOW_WIDTH)**2 + (self.WINDOW_HEIGHT)**2)**0.5),  # distance_to_opponent
+                     (0, 2*math.pi)] # rotation needed to face opponent
 
     def move(self):
         
@@ -64,7 +64,9 @@ class Agent:
     def get_state(self):
     # Fetch the current state of the agent
         raw_state = np.array([self.x, self.y, self.direction[0], self.direction[1], 
-                          self.front[0], self.front[1], self.opponent.x, self.opponent.y, self.dist_to_wall()])
+                      self.opponent.x, self.opponent.y, 
+                      self.dist_to_wall(), self.distance_to_opponent(), self.angle_to_opponent()])
+
 
     # Normalize each feature
         state = np.array([self.rescale(raw_state[i], self.input_ranges[i], (-1, 1)) for i in range(len(raw_state))])
@@ -134,6 +136,19 @@ class Agent:
     def mutate(self):
         # Randomly modify the weights
         self.nn.mutate()
+    
+    def distance_to_opponent(self):
+    # Returns the euclidean distance to the opponent
+        return ((self.x - self.opponent.x)**2 + (self.y - self.opponent.y)**2)**0.5
+
+    def angle_to_opponent(self):
+        # Returns the angle in radians between the agent's front and the line to the opponent
+        dx = self.opponent.x - self.x
+        dy = self.opponent.y - self.y
+        angle = math.atan2(dy, dx)
+        return (self.rotation - angle + 2*math.pi) % (2*math.pi)
+
+
 
 
 class Projectile:
