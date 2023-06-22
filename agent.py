@@ -13,7 +13,7 @@ class Agent:
         self.radius = 30
         self.speed = 0.05
         self.direction = [random.uniform(-1, 1), random.uniform(-1, 1)]  # direction of movement
-        self.rotation = 0 # direction agent is facing
+        self.rotation = math.pi # direction agent is facing
         self.ticks = 0  # Add a ticks attribute
         self.front = self.update_front()
         self.projectiles = []
@@ -76,7 +76,10 @@ class Agent:
         # Use the neural network's output to modify the agent's state
         self.direction = [output[0], output[1]]
         self.rotation = self.rescale(output[3], old_range=(-1, 1), new_range=(0, 2*math.pi)) 
-        
+
+        angle_difference = abs(self.rotation - self.angle_to_opponent())
+        if abs(angle_difference) < 0.1:
+            self.agentHits += 0.1
         self.update_front()
         if output[2] > 0.5:
             self.shoot()
@@ -142,11 +145,16 @@ class Agent:
         return ((self.x - self.opponent.x)**2 + (self.y - self.opponent.y)**2)**0.5
 
     def angle_to_opponent(self):
-        # Returns the angle in radians between the agent's front and the line to the opponent
+        # Returns the angle in radians from the agent to the opponent relative to the positive x-axis
         dx = self.opponent.x - self.x
         dy = self.opponent.y - self.y
         angle = math.atan2(dy, dx)
-        return (self.rotation - angle + 2*math.pi) % (2*math.pi)
+        
+        # Convert the angle to the range [0, 2*pi]
+        if angle < 0:
+            angle += 2 * math.pi
+
+        return angle
 
 
 

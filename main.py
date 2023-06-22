@@ -9,7 +9,8 @@ import pygame
 import math
 import itertools
 from multiprocessing import Pool
-
+import NN
+import torch
 
 
 # Set the dimensions of the game window
@@ -193,106 +194,163 @@ def run_simulation_withGraphics(agent1, agent2, seconds):
 class GeneticAlgorithm:
     def __init__(self, population_size):
         self.population_size = population_size
-        self.population = [agent.Agent(200, 300, 800, 600) for _ in range(population_size)]
-        self.history = {'generation': [], 'best': [], 'worst': [], 'average': []}
-        #plt.ion()
-        #self.fig, self.ax = plt.subplots()
+        self.population_right = [agent.Agent(600, 300, 800, 600) for _ in range(population_size)]
+        self.population_left = [agent.Agent(200, 300, 800, 600) for _ in range(population_size)]
+        self.history = {'generation': [], 'population': [], 'best': [], 'worst': [], 'average': []}
+        
+        plt.ion()
+        self.fig, self.ax = plt.subplots()
     
-    def selection(self):
+    def selection(self, population):
         # Tournament selection
-        parent1 = max(random.sample(self.population, k=5), key=lambda agent: (agent.agentHits-agent.timesHit))
-        parent2 = max(random.sample(self.population, k=5), key=lambda agent: (agent.agentHits-agent.timesHit))
+        parent1 = max(random.sample(population, k=5), key=lambda agent: (agent.agentHits-agent.timesHit))
+        parent2 = max(random.sample(population, k=5), key=lambda agent: (agent.agentHits-agent.timesHit))
         return parent1, parent2
 
-    def replacement(self):
+    def replacement(self,population):
         # Replace the worst individuals in the population with the newly created individuals
-        self.population.sort(key=lambda agent: (agent.agentHits-agent.timesHit))
-        self.population[:3] = self.new_individuals
+        population.sort(key=lambda agent: (agent.agentHits-agent.timesHit))
+        population[:2] = self.new_individuals
 
     def run_generation(self,generation,numberofgenerations):
         # Run the game for each pair of agents
         count = 0
 
        
-        for agent1, agent2 in itertools.combinations(self.population, 2):
+        for agent_right in self.population_right:
+            for agent_left in self.population_left:
+                run_simulation(agent_left, agent_right, 40, count)
+                count += 1
 
-            run_simulation(agent1, agent2, 40, count)
-            count += 1
-            run_simulation(agent2, agent1, 40, count)
+        whichPop = 0        
+        for pop in [self.population_right, self.population_left]:
+            # Selection
+            parent1, parent2 = self.selection(pop)
+            
+            # Crossover
+            self.new_individuals = [parent1.crossover(parent2) for _ in range(2)]
+            
+            # Mutation
+            for individual in self.new_individuals:
+                individual.mutate()
+            
+
+            self.print_stats(generation,pop,whichPop)
+            # Replacement
+
+            self.replacement(pop)
+
+            
+            # Reset the scores for the next generation
+            for agent in pop:
+                agent.agentHits=0
+                agent.timesHit=0
+
+            whichPop = 1
         
-        # Selection
-        parent1, parent2 = self.selection()
         
-        # Crossover
-        self.new_individuals = [parent1.crossover(parent2) for _ in range(3)]
-        
-        # Mutation
-        for individual in self.new_individuals:
-            individual.mutate()
-        
-        ga.print_stats(generation)
         # Replacement
         if numberofgenerations -1  == generation :
             self.runSim()
-            ga.save_agents('agents2.pkl')   
+            self.save_agents()   
 
             return
 
-        self.replacement() 
+        self.update_graph()
+        
 
-        for agent in self.population:
-            agent.agentHits=0
-            agent.timesHit=0 
+    def print_stats(self, generation, population, whichPop):
 
-    def print_stats(self, generation):
+        name =""
 
-        best_agent = max(self.population, key=lambda agent: (agent.agentHits-agent.timesHit))
-        worst_agent = min(self.population, key=lambda agent: (agent.agentHits-agent.timesHit))
-        scores = [agent.agentHits - agent.timesHit for agent in self.population]
+        if whichPop == 0:
+            name = "right"
+        else:
+            name = "left"
+
+        best_agent = max(population, key=lambda agent: (agent.agentHits-agent.timesHit))
+        worst_agent = min(population, key=lambda agent: (agent.agentHits-agent.timesHit))
+        scores = [agent.agentHits - agent.timesHit for agent in population]
         
 
         print(f'Generation: {generation}')
+        print(f'Population: {name}')
         print(f'Best Score: {best_agent.agentHits - best_agent.timesHit}')
         print(f'Worst Score: {worst_agent.agentHits - worst_agent.timesHit}')
-        print(f'Average Score: {sum(scores) / len(self.population)}')
+        print(f'Average Score: {sum(scores) / len(population)}')
 
         print()
 
+        
         self.history['generation'].append(generation)
+        self.history['population'].append(name)
         self.history['best'].append(best_agent.agentHits - best_agent.timesHit)
         self.history['worst'].append(worst_agent.agentHits - worst_agent.timesHit)
-        self.history['average'].append(sum(scores) / len(self.population))
+        self.history['average'].append(sum(scores) / len(population))
 
         
         
         
     def runSim(self):   
 
-        pop = self.population[:]
-        pop.sort(key=lambda agent: (agent.agentHits-agent.timesHit))
-        best_agent = pop[9]
         
-        worst_agent = pop[8]
-        run_simulation_withGraphics(best_agent, worst_agent, 20)
+        self.population_right.sort(key=lambda agent: (agent.agentHits-agent.timesHit))
+        right = self.population_right[6]
+        self.population_left.sort(key=lambda agent: (agent.agentHits-agent.timesHit))
+        left = self.population_left[6]
+        run_simulation_withGraphics(left, right, 20)
 
 
-    def save_agents(self, filename):
+    def save_agents(self):
         try:
-            with open(filename, 'wb') as f:
-                pickle.dump(self.population, f)
-                print("Agent saved successfully.")
+            with open('rightpop.pkl', 'wb') as f:
+                pickle.dump(self.population_right, f)
+                print("Right Agents saved successfully.")
+            with open('leftpop.pkl', 'wb') as f:
+                pickle.dump(self.population_left, f)
+                print("Left Agents saved successfully.")
         except Exception as e:
             print(f"Error occurred while saving agent: {e}")
 
-    def load_agents(self, filename):
-        with open(filename, 'rb') as f:
-            self.population = pickle.load(f)
+    def load_agents(self):
+        with open('rightpop.pkl', 'rb') as f:
+            self.population_right = pickle.load(f)
+        with open('leftpop.pkl', 'rb') as f:
+            self.population_left = pickle.load(f)
+    
+    def update_graph(self):
+        
+        self.ax.clear()  # clear the current plot
+        populations = set(self.history['population'])  # get all unique population names
+        line_styles = ['-', '--']  # solid and dashed lines
+
+        for style, pop in zip(line_styles, populations):
+            # get the data for this population
+            indices = [i for i, x in enumerate(self.history['population']) if x == pop]
+            generations = [self.history['generation'][i] for i in indices]
+            best_scores = [self.history['best'][i] for i in indices]
+            worst_scores = [self.history['worst'][i] for i in indices]
+            average_scores = [self.history['average'][i] for i in indices]
+
+            # plot the data for this population
+            self.ax.plot(generations, best_scores, style, label=f'{pop} best')
+            self.ax.plot(generations, worst_scores, style, label=f'{pop} worst')
+            self.ax.plot(generations, average_scores, style, label=f'{pop} average')
+
+        self.ax.set_ylim(-200, 200)  # set the y-axis limits
+        self.ax.legend()  # add a legend
+        plt.draw()  # draw the plot
+        plt.show(block=False)
+        plt.pause(1)  # pause to allow the plot to update
 
 
+
+
+'''
 ga = GeneticAlgorithm(population_size)
 
 
-numberofgenerations = 20
+numberofgenerations = 30
 for _ in range(numberofgenerations):
       #Run the genetic algorithm for 100 generations
     ga.run_generation(_,numberofgenerations)
@@ -300,6 +358,8 @@ for _ in range(numberofgenerations):
 
 
 
-ga.load_agents('agents2.pkl')
+ga.load_agents()
 ga.runSim()
+'''
+
 

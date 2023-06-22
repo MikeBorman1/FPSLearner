@@ -69,14 +69,15 @@ class NeuralNetwork:
         # For each weight, there is a 1% chance that it gets replaced by a random value
         for i in range(self.weights1.shape[0]):
             for j in range(self.weights1.shape[1]):
-                if random.random() < 0.005:
+                if random.random() < 0.01:
                     self.weights1[i, j] = np.random.randn()
         for i in range(self.weights2.shape[0]):
             for j in range(self.weights2.shape[1]):
-                if random.random() < 0.005:
+                if random.random() < 0.01:
                     self.weights2[i, j] = np.random.randn()
         for i in range(self.weights3.shape[0]):
             for j in range(self.weights3.shape[1]):
-                if random.random() < 0.005:
+                if random.random() < 0.01:
                     self.weights3[i, j] = np.random.randn()
+
 
